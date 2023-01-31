@@ -1,46 +1,34 @@
 import pandas as pd
 from typing import List
+from dataclasses import dataclass
 
 
+@dataclass
 class DataCleaner:
-    """Class which proposes several methods to clean a raw pandas DataFrame."""
+    """Class which proposes several methods to clean a pandas DataFrame."""
 
-    def __init__(self, raw_df: pd.DataFrame):
-        """Initializes the DataCleaner class with a pandas DataFrame
-
-        Args:
-            raw_df (pd.DataFrame): raw pandas DataFrame to be cleaned
-        """
-        self.raw_df = raw_df
+    df: pd.DataFrame
 
     def downcast_columns(self):
         """Downcasts columns with the most appropriate data type
 
         Returns:
-            self
+            self: returns the same instance of the class, allowing method chaining.
         """
 
-        float_columns = self.raw_df.select_dtypes(include="float").columns
-        integer_columns = self.raw_df.select_dtypes(include="int").columns
-        object_columns = self.raw_df.select_dtypes(include="object").columns
+        float_cols = self.df.select_dtypes(include="float").columns
+        integer_cols = self.df.select_dtypes(include="int").columns
+        object_cols = self.df.select_dtypes(include="object").columns
 
-        for column in self.raw_df.columns:
-            if column in float_columns:
-                self.raw_df[column] = pd.to_numeric(
-                    self.raw_df[column], downcast="float"
-                )
-            if column in integer_columns:
-                self.raw_df[column] = pd.to_numeric(
-                    self.raw_df[column], downcast="unsigned"
-                )
-            if (column in object_columns) and (
-                self.raw_df[column].nunique() / len(self.raw_df) < 0.5
-            ):
-                self.raw_df[column] = self.raw_df[column].astype("category")
-            if (column in object_columns) and (
-                self.raw_df[column].nunique() / len(self.raw_df) >= 0.5
-            ):
-                self.raw_df[column] = self.raw_df[column].astype("str")
+        for col in self.df.columns:
+            if col in float_cols:
+                self.df[col] = pd.to_numeric(self.df[col], downcast="float")
+            if col in integer_cols:
+                self.df[col] = pd.to_numeric(self.df[col], downcast="unsigned")
+            if (col in object_cols) and (self.df[col].nunique() / len(self.df) < 0.5):
+                self.df[col] = self.df[col].astype("category")
+            if (col in object_cols) and (self.df[col].nunique() / len(self.df) >= 0.5):
+                self.df[col] = self.df[col].astype("str")
 
         return self
 
@@ -52,10 +40,10 @@ class DataCleaner:
             ascending (List[bool]): define how to sort them
 
         Returns:
-            self
+            self: returns the same instance of the class, allowing method chaining.
         """
 
-        self.raw_df = self.raw_df.sort_values(
+        self.df = self.df.sort_values(
             by=columns_to_sort,
             ascending=ascending,
             ignore_index=True,
@@ -67,10 +55,10 @@ class DataCleaner:
         """Uppercases column names
 
         Returns:
-            self
+            self: returns the same instance of the class, allowing method chaining
         """
 
-        self.raw_df.columns = self.raw_df.columns.str.upper().str.replace(" ", "_")
+        self.df.columns = self.df.columns.str.upper().str.replace(" ", "_")
 
         return self
 
@@ -81,10 +69,10 @@ class DataCleaner:
             columns_order (List[str]): list of columns to be reordered
 
         Returns:
-            self
+            self: returns the same instance of the class, allowing method chaining
         """
 
-        self.raw_df = self.raw_df[columns_order]
+        self.df = self.df[columns_order]
 
         return self
 
@@ -92,36 +80,41 @@ class DataCleaner:
         """Renames columns in the DataFrame
 
         Args:
-            column_map (dict): dictionary of old column name keys
+            column_map (Dict[str]): dictionary of old column name keys
             and new column name values
 
         Returns:
-            self
+            self: returns the same instance of the class, allowing method chaining
         """
-        self.raw_df = self.raw_df.rename(columns=column_map)
+
+        self.df = self.df.rename(columns=column_map)
         return self
 
-    def replace_values(self, column: str, value_map: dict):
-        """Replaces values in a specific column of the DataFrame
+    def replace_values(self, **kwargs):
+        """Replace values in one or multiple columns of a Pandas DataFrame.
 
-        Args:
-            column (str): name of the column to replace values in
-            value_map (dict): dictionary of old value keys
-            and new value values
+        Parameters:
+            df (pd.DataFrame): The input DataFrame.
+            **kwargs: One or multiple dictionaries in which keys are the values to be
+            replaced and values are the new values. Columns and dictionaries are
+            specified as keyword arguments, e.g. column_name=replace_dict.
 
         Returns:
-            self
+            pd.DataFrame: The DataFrame with
         """
-        self.raw_df[column] = self.raw_df[column].replace(value_map)
+
+        for column, replace_dict in kwargs.items():
+            self.df[column].replace(replace_dict, inplace=True)
         return self
 
-    def drop_duplicate(self):
+    def drop_duplicates(self):
         """Drops the duplicate rows from DataFrame
 
         Returns:
-            self
+            self: returns the same instance of the class, allowing method chaining
         """
-        self.raw_df = self.raw_df.drop_duplicates()
+
+        self.df = self.df.drop_duplicates(keep="first", ignore_index=True)
         return self
 
     def fill_na(self, value):
@@ -131,52 +124,81 @@ class DataCleaner:
             value: value to fill missing values with
 
         Returns:
-            self
+            self: returns the same instance of the class, allowing method chaining
         """
-        self.raw_df = self.raw_df.fillna(value)
+        
+        self.df = self.df.fillna(value)
         return self
 
-    def drop_rows(self, column_name: str, value_to_drop):
-        """Drop rows from the DataFrame that meet a certain condition.
+    def drop_rows(self, condition: str):
+        """Drop rows corresponding to the given condition
 
         Args:
-            column_name (str): column name.
-            value_to_drop: value to remove
-
+            condition: indicates rows to be dropped
 
         Returns:
-            self
+            self: returns the same instance of the class, allowing method chaining
         """
 
-        self.raw_df = self.raw_df[
-            ~(self.raw_df[column_name] == value_to_drop)
-        ].reset_index(drop=True)
-
+        self.df = self.df.query("not ({})".format(condition)).reset_index(drop=True)
         return self
 
-    def keep_rows(self, column_name: str, value_to_keep):
-        """Select rows from the DataFrame that meet a certain condition.
+    def keep_rows(self, condition: str):
+        """Keep rows corresponding to the given condition
 
         Args:
-            column_name (str): column name.
-            value_to_keep: value to keep
-
+            condition: indicates rows to be kept
 
         Returns:
-            self
+            self: returns the same instance of the class, allowing method chaining
         """
 
-        self.raw_df = self.raw_df[
-            (self.raw_df[column_name] == value_to_keep)
-        ].reset_index(drop=True)
-
+        self.df = self.df.query(condition).reset_index(drop=True)
         return self
 
-    def get_cleaned_df(self):
+    def create_column(
+        self,
+        new_column_name: str,
+        conditions: List[str],
+        logic_operator: str,
+        value_if_true,
+        value_if_false,
+    ):
+        """
+        Creates a new column in the dataframe by evaluating a set of conditions.
+
+        Args:
+            new_column_name (str): the name of the new column to be created.
+            conditions (List(str)): a list of conditions to be evaluated.
+            logic_operator (str): the logical operator to be used
+            in evaluating the conditions ('AND' or 'OR').
+            value_if_true: the value to be set in the new column
+            if the conditions are True.
+            value_if_false: the value to be set in the new column
+            if the conditions are False.
+
+        Returns:
+            self: returns the same instance of the class, allowing method chaining
+        """
+
+        condition = (
+            " & ".join(conditions)
+            if logic_operator == "AND"
+            else " | ".join(conditions)
+        )
+        self.df[new_column_name] = self.df.eval(f"({condition})")
+        self.df[new_column_name] = (
+            self.df[new_column_name]
+            .astype(int)
+            .replace({1: value_if_true, 0: value_if_false})
+        )
+        return self
+
+    def get_cleaned_dataframe(self) -> pd.DataFrame:
         """Returns the cleaned DataFrame
 
         Returns:
-            pd.DataFrame: cleaned dataframe
+            self.df (pd.DataFrame): cleaned dataframe
         """
 
-        return self.raw_df
+        return self.df
