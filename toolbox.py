@@ -1,5 +1,5 @@
 import pandas as pd
-from typing import List
+import plotly.graph_objects as go
 from dataclasses import dataclass
 
 
@@ -32,15 +32,15 @@ class DataCleaner:
 
         return self
 
-    def sort_columns(self, columns_to_sort: List[str], ascending: List[bool]):
+    def sort_columns(self, columns_to_sort: list[str], ascending: list[bool]):
         """Sorts columns ascendingly or descendingly
 
         Args:
-            columns_to_sort (List[str]): list of columns to be sorted
-            ascending (List[bool]): define how to sort them
+            columns_to_sort (list[str]): list of columns to be sorted
+            ascending (list[bool]): define how to sort them
 
         Returns:
-            self: returns the same instance of the class, allowing method chaining.
+            self: returns the same instance of the class, allowing method chaining
         """
 
         self.df = self.df.sort_values(
@@ -62,11 +62,11 @@ class DataCleaner:
 
         return self
 
-    def reorder_columns(self, columns_order: List[str]):
+    def reorder_columns(self, columns_order: list[str]):
         """Reorders columns in the DataFrame
 
         Args:
-            columns_order (List[str]): list of columns to be reordered
+            columns_order (list[str]): list of columns to be reordered
 
         Returns:
             self: returns the same instance of the class, allowing method chaining
@@ -76,11 +76,11 @@ class DataCleaner:
 
         return self
 
-    def rename_columns(self, column_map: dict):
+    def rename_columns(self, column_map: dict[str, str]):
         """Renames columns in the DataFrame
 
         Args:
-            column_map (Dict[str]): dictionary of old column name keys
+            column_map (dict[str, str]): dictionary of old column name keys
             and new column name values
 
         Returns:
@@ -100,7 +100,7 @@ class DataCleaner:
             specified as keyword arguments, e.g. column_name=replace_dict.
 
         Returns:
-            pd.DataFrame: The DataFrame with
+            self: returns the same instance of the class, allowing method chaining
         """
 
         for column, replace_dict in kwargs.items():
@@ -115,19 +115,6 @@ class DataCleaner:
         """
 
         self.df = self.df.drop_duplicates(keep="first", ignore_index=True)
-        return self
-
-    def fill_na(self, value):
-        """Fills missing values in the DataFrame with a specific value
-
-        Args:
-            value: value to fill missing values with
-
-        Returns:
-            self: returns the same instance of the class, allowing method chaining
-        """
-        
-        self.df = self.df.fillna(value)
         return self
 
     def drop_rows(self, condition: str):
@@ -159,17 +146,17 @@ class DataCleaner:
     def create_column(
         self,
         new_column_name: str,
-        conditions: List[str],
+        conditions: list[str],
         logic_operator: str,
         value_if_true,
         value_if_false,
     ):
         """
-        Creates a new column in the dataframe by evaluating a set of conditions.
+        Creates a new column in the dataframe by evaluating a set of conditions
 
         Args:
             new_column_name (str): the name of the new column to be created.
-            conditions (List(str)): a list of conditions to be evaluated.
+            conditions (list(str)): a list of conditions to be evaluated.
             logic_operator (str): the logical operator to be used
             in evaluating the conditions ('AND' or 'OR').
             value_if_true: the value to be set in the new column
@@ -202,3 +189,153 @@ class DataCleaner:
         """
 
         return self.df
+
+
+@dataclass
+class DataVisualiser:
+
+    data_to_plot: pd.DataFrame
+
+    def get_barplot(self, x_col: str, y_col: str, bar_color: str) -> go.Figure:
+        """Plots barplot
+
+        Args:
+            x_col (str): X axis
+            y_col (str): Y axis
+            bar_color (str): color of the bars
+
+        Returns:
+            go.Figure: the barplot to display
+        """
+
+        barplot = go.Figure(
+            [
+                go.Bar(
+                    x=self.data_to_plot[x_col],
+                    y=self.data_to_plot[y_col],
+                    marker=dict(color=bar_color),
+                    text=self.data_to_plot[y_col],
+                    textfont=dict(family="Avenir LT Std"),
+                    texttemplate="%{text:.3s}",
+                    textposition="outside",
+                )
+            ]
+        )
+
+        return barplot
+
+    def get_lineplot(self, x_col: str, y_col: str, line_color: str) -> go.Figure:
+        """Plots lineplot
+
+        Args:
+            x_col (str): X axis
+            y_col (str): Y axis
+
+        Returns:
+            go.Figure: the lineplot to display
+        """
+
+        def improve_text_position(value_to_display: pd.Series) -> list[str]:
+            """Improves text position
+
+            Args:
+                value_to_display (pd.Series): series containing values to displau
+
+            Returns:
+                list[str]: best possible position for each value to display
+            """
+            positions = [
+                "top center",
+                # "top left",
+                # "top right",
+                "bottom center",
+                # "bottom left",
+                # "bottom right",
+            ]
+            return [positions[i % len(positions)] for i in range(len(value_to_display))]
+
+        lineplot = go.Figure(
+            data=go.Scatter(
+                x=self.data_to_plot[x_col],
+                y=self.data_to_plot[y_col],
+                marker=dict(color=line_color),
+                text=self.data_to_plot[y_col],
+                textfont=dict(family="Avenir LT Std"),
+                textposition=improve_text_position(self.data_to_plot[y_col]),
+                texttemplate="%{text:.3s}",
+                mode="lines+markers+text",
+            )
+        )
+
+        return lineplot
+
+
+def format_graph(
+    figure_to_format: DataVisualiser,
+    graph_width: int,
+    graph_height: int,
+    x_title: str,
+    y_title: str,
+    y_suffix: str = "",
+) -> DataVisualiser:
+
+    figure_to_format.update_layout(
+        title=dict(
+            text=f"",
+            x=0.5,
+        ),
+        width=graph_width,
+        height=graph_height,
+        paper_bgcolor="white",
+        plot_bgcolor="white",
+        titlefont=dict(
+            family="Avenir LT Std",
+            size=21,
+        ),
+        font=dict(
+            family="Avenir LT Std",
+            color="rgb(89, 89, 89)",
+            size=20,
+        ),
+        margin=go.layout.Margin(
+            l=100,
+            r=50,
+            b=50,
+            t=80,
+            pad=4,
+        ),
+        showlegend=False,
+    ),
+
+    figure_to_format.update_xaxes(
+        title_text=f"<b>{x_title}</b>",
+        titlefont=dict(
+            family="Avenir LT Std",
+            size=25,
+        ),
+        tickfont=dict(
+            family="Avenir LT Std",
+            size=20,
+        ),
+        zeroline=True,
+        linecolor="rgb(89, 89, 89)",
+    )
+
+    figure_to_format.update_yaxes(
+        title_text=f"<b>{y_title}</b>",
+        titlefont=dict(
+            family="Avenir LT Std",
+            color="rgb(89, 89, 89)",
+            size=25,
+        ),
+        tickfont=dict(
+            family="Avenir LT Std",
+            size=20,
+            color="rgb(89, 89, 89)",
+        ),
+        ticksuffix=y_suffix,
+        zeroline=False,
+        linecolor="rgb(89, 89, 89)",
+    )
+
+    return figure_to_format
